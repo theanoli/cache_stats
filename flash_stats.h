@@ -121,7 +121,7 @@ public:
 		last_inserts = counters["flash_inserts"]; 
 		last_bytes_written = flash_bytes_written; 
 
-		write_amplification = counters["flash_inserts"].byte_counter/(double)flash_bytes_written; 
+		write_amplification = (double)flash_bytes_written/counters["flash_inserts"].byte_counter; 
 
 		segment_util.push_back(total_size);
 	}
