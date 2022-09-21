@@ -129,6 +129,7 @@ public:
 	void print_periodic_stats() {
 		std::cout << "\tSegment utilization: " << segment_util.back() << "\n";
 		std::cout << "\tSegment flash bytes written: " << segment_fbw.back() << "\n";
+		std::cout << "\tWrite amplification: " << write_amplification << "\n"; 
 		std::cout << std::endl;
 	}
 
