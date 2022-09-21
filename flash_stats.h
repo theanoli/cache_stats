@@ -92,6 +92,8 @@ public:
 	size_t containers_written = 0;
 	size_t flash_bytes_written = 0;
 
+	double write_amplification;
+
 	Counter last_reads; 
 	Counter last_hits; 
 	Counter last_inserts; 
@@ -118,6 +120,8 @@ public:
 
 		last_inserts = counters["flash_inserts"]; 
 		last_bytes_written = flash_bytes_written; 
+
+		write_amplification = counters["flash_inserts"].byte_counter/(double)flash_bytes_written; 
 
 		segment_util.push_back(total_size);
 	}
