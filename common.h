@@ -8,11 +8,9 @@
 #include <unordered_map>
 #include <vector>
 
-
 typedef uint32_t okey_t;
 typedef uint32_t osize_t;
 typedef uint64_t counter_t; 
-
 
 class Counter {
 public: 
@@ -30,5 +28,7 @@ public:
 		return str;
 	}
 };
+
+std::string print_segment_data(std::vector<size_t>, std::string); 
 
 #endif  // STATS_COMMON_H

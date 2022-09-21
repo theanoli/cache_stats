@@ -35,6 +35,7 @@ public:
 			{"total_misses", {}}, 
 			{"total_hits", {}},
 			{"inserts", {}},
+			{"skipped_inserts", {}}, 
 			{"dram_hits", {}},
 			{"dram_misses", {}},
 		};
@@ -44,45 +45,40 @@ public:
 	Counter last_hits; 
 	Counter last_inserts; 
 	size_t last_bytes_written = 0; 
+	
+	// BMR 
+	std::vector<size_t> segment_bytes_hit; 
+	std::vector<size_t> segment_bytes_read; 
 
-	std::vector<double> segment_bhr; 
-	std::vector<double> segment_ohr; 
-	std::vector<double> segment_inserts; 
+	// OMR
+	std::vector<size_t> segment_objects_hit; 
+	std::vector<size_t> segment_objects_read; 
 
 	void collect_periodic_stats() {
 		auto bytes_read = counters["total_reads"].byte_counter; 
-		auto objs_read = counters["total_reads"].object_counter; 
+		auto objects_read = counters["total_reads"].object_counter; 
 
 		auto bytes_hit = counters["total_hits"].byte_counter;
-		auto objs_hit = counters["total_hits"].object_counter;
+		auto objects_hit = counters["total_hits"].object_counter;
 
-		double bhr = 0;
-		if (bytes_read - last_reads.byte_counter) {
-			bhr = (double)(bytes_hit - last_hits.byte_counter)
-				/(bytes_read - last_reads.byte_counter); 
-		}
+		segment_bytes_read.push_back(bytes_read - last_reads.byte_counter);
+		segment_bytes_hit.push_back(bytes_hit - last_hits.byte_counter);
 
-		double ohr = 0;
-	    if (objs_read - last_reads.object_counter) {
-	    	   (double)(objs_hit - last_hits.object_counter)
-	     		/(objs_read - last_reads.object_counter); 
-	    }
-
-		segment_bhr.push_back(bhr);
-		segment_ohr.push_back(ohr);
+		segment_objects_read.push_back(objects_read - last_reads.object_counter);
+		segment_objects_hit.push_back(objects_hit - last_hits.object_counter);
 
 		last_reads = counters["total_reads"];
 		last_hits = counters["total_hits"]; 
-
-		auto inserts = counters["inserts"].byte_counter;
-		segment_inserts.push_back(inserts);
-		last_inserts = counters["inserts"]; 
 	}
 
 	void print_periodic_stats() {
-		std::cout << "\tSegment BHR: " << segment_bhr.back() << ", overall " 
+		std::cout << "\tSegment BHR: " 
+			<< (double)segment_bytes_hit.back()/segment_bytes_read.back() 
+			<< ", overall " 
 			<< (double)counters["total_hits"].byte_counter/counters["total_reads"].byte_counter
-			<< "\n\tSegment OHR: " << segment_ohr.back() << ", overall " 
+			<< "\n\tSegment OHR: " 
+			<< (double)segment_objects_hit.back()/segment_objects_read.back() 
+			<< ", overall " 
 			<< (double)counters["total_hits"].object_counter/counters["total_reads"].object_counter; 
 		std::cout << std::endl;
 	}
@@ -91,8 +87,12 @@ public:
 		counters["total_misses"].increment(osize);
 	}
 
-	void on_insert(osize_t osize) {
-		counters["inserts"].increment(osize);
+	void on_insert_attempt(osize_t osize, bool was_inserted) {
+		if (was_inserted) {
+			counters["inserts"].increment(osize);
+		} else {
+			counters["skipped_inserts"].increment(osize);
+		}
 	}
 
 	void on_access(osize_t osize) {
@@ -122,17 +122,15 @@ public:
 
 		str += "\"segment_period\": " + std::to_string(inst_stats_period) + ",\n"; 
 
-		str += "\"segment_byte_miss_ratio\": ["; 
-		for (size_t i = 0; i < segment_bhr.size() - 1; ++i) {
-			str += std::to_string(1-segment_bhr[i]) + ", "; 
-		}
-		str += std::to_string(segment_bhr.back()) + "],\n"; 
+		str += print_segment_data(
+				segment_bytes_hit, "segment_bytes_hit") + "\n"; 
+		str += print_segment_data(
+				segment_bytes_read, "segment_bytes_read") + "\n"; 
 
-		str += "\"segment_obj_miss_ratio\": ["; 
-		for (size_t i = 0; i < segment_ohr.size() - 1; ++i) {
-			str += std::to_string(1-segment_ohr[i]) + ", "; 
-		}
-		str += std::to_string(segment_ohr.back()) + "]\n"; 
+		str += print_segment_data(
+				segment_objects_hit, "segment_objects_hit") + "\n"; 
+		str += print_segment_data(
+				segment_objects_read, "segment_objects_read") + "\n"; 
 
 		str += "}"; 
 		return str;

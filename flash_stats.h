@@ -81,7 +81,7 @@ public:
 			{"one_hit_misses", {}},
 			{"copyfwd_hits", {}}, 
 			{"copy_forwards", {}},
-			{"inserts", {}},
+			{"flash_inserts", {}},
 			{"reinserts", {}},
 			{"skipped_copyfwds", {}}, 
 			{"skipped_inserts", {}},
@@ -107,51 +107,22 @@ public:
 	 */
 	std::vector<size_t> segment_util;
 	
-	// BMR 
-	std::vector<size_t> segment_bytes_missed; 
-	std::vector<size_t> segment_bytes_read; 
-
-	// OMR
-	std::vector<size_t> segment_objects_missed; 
-	std::vector<size_t> segment_objects_read; 
-	
 	// For WA
 	std::vector<size_t> segment_fbw; 
 	std::vector<size_t> segment_inserts; 
 
 	void collect_periodic_stats(size_t total_size) {
-		auto bytes_read = counters["total_reads"].byte_counter; 
-		auto objs_read = counters["total_reads"].object_counter; 
 
-		auto bytes_hit = counters["total_hits"].byte_counter;
-		auto objs_hit = counters["total_hits"].object_counter;
-
-		segment_bytes_read.push_back(bytes_read - last_reads.byte_counter);
-		segment_bytes_hit.push_back(bytes_hit - last_hits.byte_counter);
-
-		segment_objects_read.push_back(objects_read - last_reads.object_counter);
-		segment_objects_hit.push_back(objects_hit - last_hits.object_counter);
-
-		last_reads = counters["total_reads"];
-		last_hits = counters["total_hits"]; 
-
-		segment_inserts.push_back(counters["inserts"].byte_counter - last_inserts.byte_counter); 
+		segment_inserts.push_back(counters["flash_inserts"].byte_counter - last_inserts.byte_counter); 
 		segment_fbw.push_back(flash_bytes_written - last_bytes_written); 
 
-		last_inserts = counters["inserts"]; 
+		last_inserts = counters["flash_inserts"]; 
 		last_bytes_written = flash_bytes_written; 
 
 		segment_util.push_back(total_size);
 	}
 
 	void print_periodic_stats() {
-		std::cout << "\tSegment BHR: " << segment_bhr.back() << ", overall " 
-			<< (double)counters["total_hits"].byte_counter/counters["total_reads"].byte_counter
-			<< "\n\tSegment OHR: " << segment_ohr.back() << ", overall " 
-			<< (double)counters["total_hits"].object_counter/counters["total_reads"].object_counter
-			<< "\n\tSegment WA: " << segment_wa.back() << ", overall " 
-			<< (double)flash_bytes_written/counters["inserts"].byte_counter << "\n";
-
 		std::cout << "\tSegment utilization: " << segment_util.back() << "\n";
 		std::cout << "\tSegment flash bytes written: " << segment_fbw.back() << "\n";
 		std::cout << std::endl;
@@ -201,11 +172,11 @@ public:
 	// Evict-pending objects that get re-inserted are counted as algorithm inserts
 	// (was_inserted) AND as a redundant insert
 	void on_insert_attempt(okey_t key, osize_t osize, 
-			bool was_inserted, bool was_redundant) {
+			bool was_inserted) {
 
 		if (was_inserted) {
 			// ...and we actually inserted it... 
-			counters["inserts"].increment(osize);
+			counters["flash_inserts"].increment(osize);
 
 			if (cached[key][INSERTED]) {
 				counters["reinserts"].increment(osize); 
@@ -216,22 +187,18 @@ public:
 			cached[key].set(INSERTED);
 		} else {
 			// ...or we skipped the insert. 
-			if (!was_redundant) {
-				// Skipped insertion
-				cached[key].set(SKIPPED_INSERT);
-				counters["skipped_inserts"].increment(osize);
-			}
+			cached[key].set(SKIPPED_INSERT);
+			counters["skipped_inserts"].increment(osize);
 		}
 	}
 
 	// skipped_copyfwd is for copy-forwards that got pruned
 	void on_copyfwd_attempt(okey_t key, osize_t osize, 
-			bool was_copied_forward, 
-			bool skipped_copyfwd) {
-		if (skipped_copyfwd) {
+			bool was_copied_forward) {
+		if (!was_copied_forward) {
 			cached[key].set(SKIPPED_CF);
 			counters["skipped_copyfwds"].increment(osize);
-		} else if (was_copied_forward) {
+		} else {
 			cached[key].set(CF);
 			counters["copy_forwards"].increment(osize); 
 			if (copyfwds[key] < 0xff) {
@@ -296,20 +263,6 @@ public:
 		containers_written++;
 	}
 
-	void on_zone_insert(osize_t osize) {
-		counters["total_placements"].increment(osize);
-	}
-
-	std::string print_segment_data(std::vector<size_t> data, std::string name) {
-		std::string str = ""; 
-		str += "\"" + name + "\": ["; 
-		for (size_t i = 0; i < data.size() - 1; ++i) {
-			str += std::to_string(data[i]) + ", "; 
-		}
-		str += std::to_string(data.back()) + "]"; 
-		return str;
-	}
-
 	std::string dump_counters_as_json() {
 		std::string str = "{\n";
 		
@@ -329,22 +282,10 @@ public:
 		str += std::to_string(copyfwd_hist[copyfwd_hist.size() - 1]) + "],\n"; 
 
 		str += "\"segment_period\": " + std::to_string(inst_stats_period) + ",\n"; 
+
 		str += print_segment_data(segment_util, "segment_util") + "\n"; 
-
-		str += print_segment_data(
-				segment_bytes_missed, "segment_bytes_missed") + "\n"; 
-		str += print_segment_data(
-				segment_bytes_read, "segment_bytes_read") + "\n"; 
-
-		str += print_segment_data(
-				segment_objects_missed, "segment_objects_missed") + "\n"; 
-		str += print_segment_data(
-				segment_objects_read, "segment_objects_read") + "\n"; 
-
 		str += print_segment_data(segment_fbw, "segment_fbw") + "\n"; 
 		str += print_segment_data(segment_inserts, "segment_inserts") + "\n"; 
-
-		str += "\"average_occupancy\": " + std::to_string(util_sum/segment_util.size()) + "\n"; 
 
 		str += "}"; 
 		return str;
