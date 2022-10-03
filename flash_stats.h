@@ -288,8 +288,8 @@ public:
 
 		str += "\"segment_period\": " + std::to_string(inst_stats_period) + ",\n"; 
 
-		str += print_segment_data(segment_util, "segment_util") + "\n"; 
-		str += print_segment_data(segment_fbw, "segment_fbw") + "\n"; 
+		str += print_segment_data(segment_util, "segment_util") + ",\n"; 
+		str += print_segment_data(segment_fbw, "segment_fbw") + ",\n"; 
 		str += print_segment_data(segment_inserts, "segment_inserts") + "\n"; 
 
 		str += "}"; 

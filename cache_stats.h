@@ -123,12 +123,12 @@ public:
 		str += "\"segment_period\": " + std::to_string(inst_stats_period) + ",\n"; 
 
 		str += print_segment_data(
-				segment_bytes_hit, "segment_bytes_hit") + "\n"; 
+				segment_bytes_hit, "segment_bytes_hit") + ",\n"; 
 		str += print_segment_data(
-				segment_bytes_read, "segment_bytes_read") + "\n"; 
+				segment_bytes_read, "segment_bytes_read") + ",\n"; 
 
 		str += print_segment_data(
-				segment_objects_hit, "segment_objects_hit") + "\n"; 
+				segment_objects_hit, "segment_objects_hit") + ",\n"; 
 		str += print_segment_data(
 				segment_objects_read, "segment_objects_read") + "\n"; 
 
