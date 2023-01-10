@@ -295,6 +295,11 @@ public:
 		str += "}"; 
 		return str;
 	}
+
+	void increment_custom_counter(std::string counter_name, size_t size)
+	{
+		counters[counter_name].increment(size);
+	}
 };
 
 #endif  // FLASH_STATS_H
