@@ -300,6 +300,20 @@ public:
 	{
 		counters[counter_name].increment(size);
 	}
+
+	// From https://stackoverflow.com/questions/7616511/calculate-mean-and-standard-deviation-from-a-vector-of-samples-in-c-using-boos
+	std::pair<double, double>compute_container_stats(std::vector<size_t> const &exptimes)
+	{
+		// Compute std deviation
+		double sum = std::accumulate(exptimes.begin(), exptimes.end(), 0.0);
+		double mean = sum/exptimes.size();
+
+		std::vector<double> diff(exptimes.size());
+		std::transform(exptimes.begin(), exptimes.end(), diff.begin(), [mean](double x) { return x - mean; });
+		double sq_sum = std::inner_product(diff.begin(), diff.end(), diff.begin(), 0.0);
+		double stddev = std::sqrt(sq_sum/exptimes.size());
+		return {mean, stddev}; 
+	}
 };
 
 #endif  // FLASH_STATS_H
