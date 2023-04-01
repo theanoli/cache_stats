@@ -139,6 +139,7 @@ public:
 	void on_miss(okey_t key, osize_t osize) {
 		counters["total_misses"].increment(osize);
 
+		/*
 		auto it = cached.find(key); 
 		bool compulsory_miss = it == cached.end();
 
@@ -169,6 +170,7 @@ public:
 				counters["capacity_misses"].increment(osize);
 			}
 		}
+		*/
 	}
 
 	// Objects written into the cache by the algorithm. 
@@ -183,6 +185,7 @@ public:
 			// ...and we actually inserted it... 
 			counters["flash_inserts"].increment(osize);
 
+			/*
 			if (cached[key][INSERTED]) {
 				counters["reinserts"].increment(osize); 
 			}
@@ -190,9 +193,12 @@ public:
 			// The miss that led to this insert should unset the 
 			// SKIPPED_INSERT and SKIPPED_CF flags
 			cached[key].set(INSERTED);
+			*/
 		} else {
 			// ...or we skipped the insert. 
+			/*
 			cached[key].set(SKIPPED_INSERT);
+			*/
 			counters["skipped_inserts"].increment(osize);
 		}
 	}
@@ -201,10 +207,14 @@ public:
 	void on_copyfwd_attempt(okey_t key, osize_t osize, 
 			bool was_copied_forward) {
 		if (!was_copied_forward) {
+			/*
 			cached[key].set(SKIPPED_CF);
+			*/
 			counters["skipped_copyfwds"].increment(osize);
 		} else {
+			/*
 			cached[key].set(CF);
+			*/
 			counters["copy_forwards"].increment(osize); 
 			if (copyfwds[key] < 0xff) {
 				copyfwds[key]++; 
@@ -213,6 +223,7 @@ public:
 	}
 
 	void on_erase(okey_t key, osize_t osize) {
+		/*
 		auto it = cached.find(key); 
 		assert(it != cached.end()); 
 		if (!it->second[INSERTED]) {
@@ -226,6 +237,7 @@ public:
 
 		uint8_t mask = (1 << CF | 1 << READ);
 		cached[key] &= ~mask; 
+		*/
 
 		// Record the copyforward info for this object and erase
 		copyfwd_hist[copyfwds[key]]++; 
@@ -243,11 +255,13 @@ public:
 	void on_hit(okey_t key, osize_t osize) {
 		counters["total_hits"].increment(osize);
 
+		/*
 		if (cached[key][CF]) {
 			counters["copyfwd_hits"].increment(osize);
 		}
 
 		cached[key].set(READ);
+		*/
 	}
 
 	void on_evict([[maybe_unused]] okey_t key, 
