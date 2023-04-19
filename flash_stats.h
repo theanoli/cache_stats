@@ -66,13 +66,15 @@ public:
 	};
 
 	std::unordered_map<okey_t, std::bitset<8>> cached; 
+	std::set<okey_t> seen;
 	std::vector<uint32_t> copyfwd_hist; 
 	std::unordered_map<okey_t, uint8_t> copyfwds; 
 
 	int inst_stats_period; 
 
-	FlashStats(int m) 
-		: copyfwd_hist(256, 0), inst_stats_period(m) {
+	FlashStats(int m, bool r) 
+		: copyfwd_hist(256, 0), inst_stats_period(m),
+		record_segment_byte_breakdown(r) {
 		counters = {
 			{"total_reads", {}},
 			{"total_misses", {}}, 
@@ -89,17 +91,22 @@ public:
 			{"skipped_inserts", {}},
 			{"total_placements", {}}, 
 		};
+		std::cout << (record_segment_byte_breakdown? "Recording " : "Not recording ") << 
+			"segment byte breakdown!" << std::endl;
 	}
+
 	size_t containers_erased = 0; 
 	size_t containers_written = 0;
 	size_t flash_bytes_written = 0;
 
 	double write_amplification;
 
-	Counter last_reads; 
-	Counter last_hits; 
-	Counter last_inserts; 
+	size_t last_inserts = 0; 
+	size_t last_cfs = 0; 
+	size_t last_objectswritten = 0;
+	size_t last_reinserts = 0;
 	size_t last_bytes_written = 0; 
+	bool record_segment_byte_breakdown = false;
 
 	/*
 	 * Want: 
@@ -114,14 +121,27 @@ public:
 	// For WA
 	std::vector<size_t> segment_fbw; 
 	std::vector<size_t> segment_inserts; 
+	std::vector<size_t> segment_copyforwards; 
+	std::vector<size_t> segment_objectswritten; 
+	std::vector<size_t> segment_reinserts; 
 
 	void collect_periodic_stats(size_t total_size) {
-
-		segment_inserts.push_back(counters["flash_inserts"].byte_counter - last_inserts.byte_counter); 
 		segment_fbw.push_back(flash_bytes_written - last_bytes_written); 
-
-		last_inserts = counters["flash_inserts"]; 
 		last_bytes_written = flash_bytes_written; 
+
+		segment_inserts.push_back(counters["flash_inserts"].byte_counter - last_inserts); 
+		last_inserts = counters["flash_inserts"].byte_counter - counters["skipped_inserts"].byte_counter; 
+
+		if (record_segment_byte_breakdown) {
+			segment_copyforwards.push_back(counters["copy_forwards"].byte_counter - last_cfs);
+			last_cfs = counters["copy_forwards"].byte_counter;
+
+			segment_objectswritten.push_back(counters["objects_written"].byte_counter - last_objectswritten);
+			last_objectswritten = counters["objects_written"].byte_counter;
+
+			segment_reinserts.push_back(counters["reinserts"].byte_counter - last_reinserts);
+			last_reinserts = counters["last_reinserts"].byte_counter;
+		}
 
 		write_amplification = (double)flash_bytes_written/counters["flash_inserts"].byte_counter; 
 
@@ -187,11 +207,17 @@ public:
 			// ...and we actually inserted it... 
 			counters["flash_inserts"].increment(osize);
 
-			/*
-			if (cached[key][INSERTED]) {
-				counters["reinserts"].increment(osize); 
-			}
+			if (record_segment_byte_breakdown) {
+				auto ret = seen.insert(key);
 
+				// If insertion into set fails, we've seen and inserted
+				// this already
+				if (ret.second) {
+					counters["reinserts"].increment(osize); 
+				}
+			}
+			
+			/*
 			// The miss that led to this insert should unset the 
 			// SKIPPED_INSERT and SKIPPED_CF flags
 			cached[key].set(INSERTED);
@@ -306,6 +332,11 @@ public:
 
 		str += print_segment_data(segment_util, "segment_util") + ",\n"; 
 		str += print_segment_data(segment_fbw, "segment_fbw") + ",\n"; 
+		if (record_segment_byte_breakdown) {
+			str += print_segment_data(segment_copyforwards, "segment_copyforwards") + ",\n"; 
+			str += print_segment_data(segment_objectswritten, "segment_objectswritten") + ",\n"; 
+			str += print_segment_data(segment_reinserts, "segment_reinserts") + ",\n"; 
+		}
 		str += print_segment_data(segment_inserts, "segment_inserts") + "\n"; 
 
 		str += "}"; 
