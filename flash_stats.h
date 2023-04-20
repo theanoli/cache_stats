@@ -2,8 +2,9 @@
 #define FLASH_STATS_H
 
 #include "common.h"
-#include <numeric>
 #include <cmath>
+#include <numeric>
+#include <set>
 
 class FlashStats {
 public: 
