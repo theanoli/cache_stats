@@ -130,7 +130,7 @@ public:
 		segment_fbw.push_back(flash_bytes_written - last_bytes_written); 
 		last_bytes_written = flash_bytes_written; 
 
-		segment_inserts.push_back(counters["flash_inserts"].byte_counter - last_inserts); 
+		segment_inserts.push_back(counters["flash_inserts"].byte_counter - counters["skipped_inserts"].byte_counter - last_inserts); 
 		last_inserts = counters["flash_inserts"].byte_counter - counters["skipped_inserts"].byte_counter; 
 
 		if (record_segment_byte_breakdown) {
@@ -141,7 +141,7 @@ public:
 			last_objectswritten = counters["objects_written"].byte_counter;
 
 			segment_reinserts.push_back(counters["reinserts"].byte_counter - last_reinserts);
-			last_reinserts = counters["last_reinserts"].byte_counter;
+			last_reinserts = counters["reinserts"].byte_counter;
 		}
 
 		write_amplification = (double)flash_bytes_written/counters["flash_inserts"].byte_counter; 
