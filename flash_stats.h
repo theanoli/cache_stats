@@ -2,8 +2,9 @@
 #define FLASH_STATS_H
 
 #include "common.h"
-#include <numeric>
 #include <cmath>
+#include <numeric>
+#include <set>
 
 class FlashStats {
 public: 
@@ -129,7 +130,7 @@ public:
 		segment_fbw.push_back(flash_bytes_written - last_bytes_written); 
 		last_bytes_written = flash_bytes_written; 
 
-		segment_inserts.push_back(counters["flash_inserts"].byte_counter - last_inserts); 
+		segment_inserts.push_back(counters["flash_inserts"].byte_counter - counters["skipped_inserts"].byte_counter - last_inserts); 
 		last_inserts = counters["flash_inserts"].byte_counter - counters["skipped_inserts"].byte_counter; 
 
 		if (record_segment_byte_breakdown) {
