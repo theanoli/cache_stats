@@ -211,8 +211,8 @@ public:
 				auto ret = seen.insert(key);
 
 				// If insertion into set fails, we've seen and inserted
-				// this already
-				if (ret.second) {
+				// this already. If it passes, we have NOT seen this; it's a new insert.
+				if (!ret.second) {
 					counters["reinserts"].increment(osize); 
 				}
 			}
