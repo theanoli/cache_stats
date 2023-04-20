@@ -140,7 +140,7 @@ public:
 			last_objectswritten = counters["objects_written"].byte_counter;
 
 			segment_reinserts.push_back(counters["reinserts"].byte_counter - last_reinserts);
-			last_reinserts = counters["last_reinserts"].byte_counter;
+			last_reinserts = counters["reinserts"].byte_counter;
 		}
 
 		write_amplification = (double)flash_bytes_written/counters["flash_inserts"].byte_counter; 
